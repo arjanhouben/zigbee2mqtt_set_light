@@ -35,9 +35,9 @@ int main( int argc, char *argv[] )
 {
 	try
 	{
-		if ( argc < 5 )
+		if ( argc < 3 )
 		{
-			throw std::runtime_error( "please specify host, port, friendly name, value" );
+			throw std::runtime_error( "please specify host and port" );
 		}
 		mosquitto_lib_init();
 		scoped de_init{ &mosquitto_lib_cleanup };
@@ -51,16 +51,17 @@ int main( int argc, char *argv[] )
 		require( MOSQ_ERR_SUCCESS, mosquitto_connect( client.get(), argv[ 1 ], port, keep_alive_interval ) );
 		mosquitto_ptr disconnect{ client.get(), &mosquitto_disconnect };
 
-		int value = std::atoi( argv[ 4 ] );
-
-		nlohmann::json message;
-		message[ "state" ] = value ? "ON" : "OFF";
-		message[ "brightness" ] = value;
-
-		auto topic = std::string{ "zigbee2mqtt/" } + argv[ 3 ] + "/set";
-		int message_id = 0;
-		auto message_str = message.dump();
-		require( MOSQ_ERR_SUCCESS, mosquitto_publish( client.get(), &message_id, topic.c_str(), message_str.size(), message_str.data(), 0, false ) );
+		std::string line;
+		while ( std::getline( std::cin, line ) )
+		{
+			const auto separator = line.find( "|" );
+			const auto friendly_name = line.substr( 0, separator );
+			const auto message = nlohmann::json::parse( line.substr( separator + 1 ) );
+			const auto topic = "zigbee2mqtt/" + friendly_name + "/set";
+			int message_id = 0;
+			auto message_str = message.dump();
+			require( MOSQ_ERR_SUCCESS, mosquitto_publish( client.get(), &message_id, topic.c_str(), message_str.size(), message_str.data(), 0, false ) );
+		}
 	}
 	catch( std::exception &err )
 	{
