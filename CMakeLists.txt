@@ -4,6 +4,8 @@ cmake_minimum_required( VERSION 3.19 )
 
 include( FetchContent )
 
+option( WITH_CJSON OFF )
+
 FetchContent_Declare( json
 	GIT_REPOSITORY
 		https://github.com/nlohmann/json.git
@@ -11,11 +13,11 @@ FetchContent_Declare( json
 
 FetchContent_Makeavailable( json )
 
-set( WITH_CLIENTS OFF )
-set( WITH_BROKER OFF )
-set( WITH_APPS OFF )
-set( WITH_PLUGINS OFF )
-set( DOCUMENTATION OFF )
+option( WITH_CLIENTS OFF )
+option( WITH_BROKER OFF )
+option( WITH_APPS OFF )
+option( WITH_PLUGINS OFF )
+option( DOCUMENTATION OFF )
 
 FetchContent_Declare( mosquitto 
 	GIT_REPOSITORY
