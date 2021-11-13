@@ -54,13 +54,21 @@ int main( int argc, char *argv[] )
 		std::string line;
 		while ( std::getline( std::cin, line ) )
 		{
-			const auto separator = line.find( "|" );
-			const auto friendly_name = line.substr( 0, separator );
-			const auto message = nlohmann::json::parse( line.substr( separator + 1 ) );
-			const auto topic = "zigbee2mqtt/" + friendly_name + "/set";
-			int message_id = 0;
-			auto message_str = message.dump();
-			require( MOSQ_ERR_SUCCESS, mosquitto_publish( client.get(), &message_id, topic.c_str(), message_str.size(), message_str.data(), 0, false ) );
+			try
+			{
+				const auto separator = line.find( "|" );
+				const auto friendly_name = line.substr( 0, separator );
+				const auto message = nlohmann::json::parse( line.substr( separator + 1 ) );
+				const auto topic = "zigbee2mqtt/" + friendly_name + "/set";
+				int message_id = 0;
+				auto message_str = message.dump();
+				std::cout << "set " << friendly_name << " to " << message_str << '\n';
+				require( MOSQ_ERR_SUCCESS, mosquitto_publish( client.get(), &message_id, topic.c_str(), message_str.size(), message_str.data(), 0, false ) );
+			}
+			catch( std::exception &err )
+			{
+				std::cout << err.what() << '\n';
+			}
 		}
 	}
 	catch( std::exception &err )
