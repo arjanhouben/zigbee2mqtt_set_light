@@ -1,4 +1,4 @@
-project( set_mqtt_light )
+project( mqtt_homebridge_proxy )
 
 cmake_minimum_required( VERSION 3.19 )
 
@@ -19,29 +19,31 @@ option( WITH_APPS OFF )
 option( WITH_PLUGINS OFF )
 option( DOCUMENTATION OFF )
 
-FetchContent_Declare( mosquitto 
+FetchContent_Declare( mqttpp 
 	GIT_REPOSITORY
-		https://github.com/eclipse/mosquitto.git
+		https://github.com/arjanhouben/mqttpp
+	GIT_TAG
+		main
 )
 
-FetchContent_Makeavailable( mosquitto )
+FetchContent_Makeavailable( mqttpp )
 
-add_executable( set_mqtt_light
+add_executable( mqtt_homebridge_proxy
 	main.cpp
 )
 
-target_compile_features( set_mqtt_light
+target_compile_features( mqtt_homebridge_proxy
 	PRIVATE
 		cxx_std_20
 )
 
-target_include_directories( set_mqtt_light
+target_include_directories( mqtt_homebridge_proxy
 	PRIVATE
 		${mosquitto_SOURCE_DIR}/include
 )
 
-target_link_libraries( set_mqtt_light
+target_link_libraries( mqtt_homebridge_proxy
 	PRIVATE
-		libmosquitto
+		mqttpp
 		nlohmann_json
 )

@@ -1,8 +1,35 @@
 #include <iostream>
+#include <chrono>
+#include <thread>
+#include <span>
+#include <signal.h>
 
-#include "mosquitto.h"
+#include <arjan/mqttpp.hpp>
+
+using namespace std::chrono_literals;
+
 #include <nlohmann/json.hpp>
 
+template < int Signal >
+struct catch_signal
+{
+	explicit catch_signal()
+	{
+		static auto &ref = caught_;
+		if ( signal( Signal, [](int){ ref = true; } ) == SIG_ERR )
+		{
+			throw std::system_error( errno, std::generic_category() );
+		}
+	}
+
+	explicit operator bool() const
+	{
+		return caught_;
+	}
+
+	private:
+		volatile bool caught_;
+};
 template < typename T >
 struct scoped
 {
@@ -31,44 +58,50 @@ void require( int what, int result )
 	}
 }
 
+constexpr std::string_view homebridge = "homebridge";
+
 int main( int argc, char *argv[] )
 {
 	try
 	{
-		if ( argc < 3 )
-		{
-			throw std::runtime_error( "please specify host and port" );
-		}
-		mosquitto_lib_init();
-		scoped de_init{ &mosquitto_lib_cleanup };
-
-		mosquitto_ptr client{ mosquitto_new( nullptr, true, nullptr ), &mosquitto_destroy };
-
-		mosquitto_log_callback_set( client.get(), []( auto, auto, auto level, auto str ) { std::cout << str << '\n'; } );
-
-		constexpr auto keep_alive_interval = 60;
-		int port = atoi( argv[ 2 ] );
-		require( MOSQ_ERR_SUCCESS, mosquitto_connect( client.get(), argv[ 1 ], port, keep_alive_interval ) );
-		mosquitto_ptr disconnect{ client.get(), &mosquitto_disconnect };
-
-		std::string line;
-		while ( std::getline( std::cin, line ) )
-		{
-			try
+		arjan::mqttpp::host host;
+		arjan::mqttpp::subscription zigbee(
+			host,
+			"zigbee2mqtt/#",
+			[&]( const auto &m )
 			{
-				const auto separator = line.find( "|" );
-				const auto friendly_name = line.substr( 0, separator );
-				const auto message = nlohmann::json::parse( line.substr( separator + 1 ) );
-				const auto topic = "zigbee2mqtt/" + friendly_name + "/set";
-				int message_id = 0;
-				auto message_str = message.dump();
-				std::cout << "set " << friendly_name << " to " << message_str << '\n';
-				require( MOSQ_ERR_SUCCESS, mosquitto_publish( client.get(), &message_id, topic.c_str(), message_str.size(), message_str.data(), 0, false ) );
+				const auto topic = std::string_view( m.topic ).substr( 1 );
+				if ( topic.ends_with( "set" ) ) return;
+				if ( !topic.starts_with( "igbee2mqtt" ) ) return;
+				const auto payload = std::string_view( static_cast< const char* >( m.payload ), m.payloadlen );
+				std::copy( homebridge.begin(), homebridge.end(), m.topic + 1 );
+				std::cout << "publish to: " << topic << '\n';
+				arjan::mqttpp::publisher p( host );
+				p.publish( std::string{ topic }, std::span{ payload }, arjan::mqttpp::retain::yes );
 			}
-			catch( std::exception &err )
+		);
+
+		arjan::mqttpp::subscription set(
+			host,
+			"homebridge/+/set",
+			[&]( const mosquitto_message &m )
 			{
-				std::cout << err.what() << '\n';
+				std::string_view topic( m.topic );
+				topic.remove_prefix( homebridge.size() );
+				std::cout << "publish to: " << topic << '\n';
+				arjan::mqttpp::publisher p( host );
+				p.publish( 
+					std::string{ "zigbee2mqtt" } + std::string{ topic }, 
+					std::span( static_cast< std::byte* >( m.payload ), m.payloadlen )
+				);
 			}
+		);
+
+		catch_signal< SIGINT > signal;
+		while ( !signal )
+		{
+			zigbee.handle_events();
+			set.handle_events();
 		}
 	}
 	catch( std::exception &err )
