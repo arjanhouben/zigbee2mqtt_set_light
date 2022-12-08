@@ -102,6 +102,7 @@ int main( int argc, char *argv[] )
 		{
 			zigbee.handle_events();
 			set.handle_events();
+			std::this_thread::yield();
 		}
 	}
 	catch( std::exception &err )
