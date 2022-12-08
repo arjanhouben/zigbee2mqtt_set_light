@@ -59,6 +59,7 @@ void require( int what, int result )
 }
 
 constexpr std::string_view homebridge = "homebridge";
+constexpr std::string_view zigbee2mqtt = "zigbee2mqtt";
 
 int main( int argc, char *argv[] )
 {
@@ -88,10 +89,10 @@ int main( int argc, char *argv[] )
 			{
 				std::string_view topic( m.topic );
 				topic.remove_prefix( homebridge.size() );
-				std::cout << "publish to: " << topic << '\n';
+				std::cout << "publish to: " << zigbee2mqtt << topic << '\n';
 				arjan::mqttpp::publisher p( host );
 				p.publish( 
-					std::string{ "zigbee2mqtt" } + std::string{ topic }, 
+					std::string{ zigbee2mqtt } + std::string{ topic }, 
 					std::span( static_cast< std::byte* >( m.payload ), m.payloadlen )
 				);
 			}
