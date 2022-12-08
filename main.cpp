@@ -100,9 +100,8 @@ int main( int argc, char *argv[] )
 		catch_signal< SIGINT > signal;
 		while ( !signal )
 		{
-			zigbee.handle_events();
-			set.handle_events();
-			std::this_thread::sleep_for( 1ms );
+			zigbee.handle_events( 10ms );
+			set.handle_events( 10ms );
 		}
 	}
 	catch( std::exception &err )
